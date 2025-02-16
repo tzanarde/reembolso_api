@@ -31,5 +31,14 @@ module ReembolsoApi
     # Middleware like session, flash, cookies can be added back manually.
     # Skip views, helpers and assets when generating a new resource.
     config.api_only = true
+
+    config.middleware.use ActionDispatch::Cookies
+    config.middleware.use ActionDispatch::Session::CookieStore, key: "reembolso_api_session"
+
+    # Garante que Devise não tente armazenar sessões
+    config.middleware.use Warden::Manager do |manager|
+      manager.default_strategies(:jwt)
+      manager.failure_app = Devise::FailureApp
+    end
   end
 end
