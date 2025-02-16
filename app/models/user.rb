@@ -11,6 +11,7 @@ class User < ApplicationRecord
 
   belongs_to :manager_user, class_name: "User", optional: true
   has_many :child_user, class_name: "User", foreign_key: "manager_user_id", dependent: :nullify
+  has_many :expenses
 
   def self.jwt_revoked?(payload, user)
     user.jti != payload["jti"]
