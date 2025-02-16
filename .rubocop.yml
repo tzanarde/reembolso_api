@@ -9,3 +9,8 @@ inherit_gem: { rubocop-rails-omakase: rubocop.yml }
 Style/FrozenStringLiteralComment:
   Enabled: true
   EnforcedStyle: always
+Metrics/LineLength:
+  Enabled: true
+  Max: 120
+  AllowHeredoc: true
+  AllowURI: true
