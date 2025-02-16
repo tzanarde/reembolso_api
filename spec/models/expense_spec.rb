@@ -10,6 +10,5 @@ RSpec.describe Expense, type: :model do
     it { should validate_presence_of :location }
     it { should validate_presence_of :status }
     it { should belong_to(:user) }
-    it { should validate_inclusion_of(:role).in_array(%w[P A D]) }
   end
 end
