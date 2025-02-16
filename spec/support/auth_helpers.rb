@@ -1,11 +1,11 @@
 module AuthHelpers
   extend RSpec::SharedContext
 
-  def authenticate_user
+  def authenticate_user(user)
     post "/users/sign_in", params: { user: { email: user.email,
-                                            password: user.password } }.to_json,
-                          headers: { "Content-Type" => "application/json",
-                                      "ACCEPT" => "application/json" }
+                                             password: user.password } }.to_json,
+                           headers: { "Content-Type" => "application/json",
+                                       "ACCEPT" => "application/json" }
     JSON.parse(response.body)["token"]
   end
 

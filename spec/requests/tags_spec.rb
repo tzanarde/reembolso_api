@@ -8,7 +8,7 @@ RSpec.describe "Tags", type: :request do
 
   describe "GET /tags" do
     context "when the user is logged in" do
-      let(:user_token) { authenticate_user }
+      let(:user_token) { authenticate_user(user) }
       let(:headers) { authenticated_user_headers(user_token) }
       let!(:tags) { create_list(:tag, 10) }
 
@@ -40,7 +40,7 @@ RSpec.describe "Tags", type: :request do
   describe "GET /tags/:id" do
     context "when the user is logged in" do
       context 'when the tag exists' do
-        let(:user_token) { authenticate_user }
+        let(:user_token) { authenticate_user(user) }
         let(:headers) { authenticated_user_headers(user_token) }
         let!(:tag) { create(:tag) }
 
@@ -55,8 +55,8 @@ RSpec.describe "Tags", type: :request do
         end
       end
 
-      context 'when the tag do not exist' do
-        let(:user_token) { authenticate_user }
+      context 'when the tag does not exist' do
+        let(:user_token) { authenticate_user(user) }
         let(:headers) { authenticated_user_headers(user_token) }
 
         it 'returns not found' do
@@ -80,7 +80,7 @@ RSpec.describe "Tags", type: :request do
 
   describe "POST /tags" do
     context "when the user is logged in" do
-      let(:user_token) { authenticate_user }
+      let(:user_token) { authenticate_user(user) }
       let(:headers) { authenticated_user_headers(user_token) }
       let!(:valid_params) { attributes_for(:tag).to_json }
 
@@ -109,7 +109,7 @@ RSpec.describe "Tags", type: :request do
   describe "PATCH /tags" do
     context "when the user is logged in" do
       context 'when the tag exists' do
-        let(:user_token) { authenticate_user }
+        let(:user_token) { authenticate_user(user) }
         let(:headers) { authenticated_user_headers(user_token) }
         let!(:tag) { create(:tag) }
         let(:valid_params) { { description: 'New Description' }.to_json }
@@ -126,8 +126,8 @@ RSpec.describe "Tags", type: :request do
         end
       end
 
-      context 'when the tag do not exists' do
-        let(:user_token) { authenticate_user }
+      context 'when the tag does not exist' do
+        let(:user_token) { authenticate_user(user) }
         let(:headers) { authenticated_user_headers(user_token) }
         let(:valid_params) { { description: 'New Description' }.to_json }
 
@@ -153,7 +153,7 @@ RSpec.describe "Tags", type: :request do
   describe "DELETE /tags" do
     context "when the user is logged in" do
       context 'when the tag exists' do
-        let(:user_token) { authenticate_user }
+        let(:user_token) { authenticate_user(user) }
         let(:headers) { authenticated_user_headers(user_token) }
         let!(:tag) { create(:tag) }
 
@@ -164,10 +164,9 @@ RSpec.describe "Tags", type: :request do
         end
       end
 
-      context 'when the tag do not exists' do
-        let(:user_token) { authenticate_user }
+      context 'when the tag does not exist' do
+        let(:user_token) { authenticate_user(user) }
         let(:headers) { authenticated_user_headers(user_token) }
-        let(:valid_params) { { description: 'New Description' }.to_json }
 
         it 'returns not found' do
           delete "/tags/1", headers: headers
