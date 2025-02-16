@@ -6,14 +6,14 @@ FactoryBot.define do
     active { true }
 
     trait :manager do
-      email { "manager@email.com" }
+      sequence(:email) { |n| "manager#{n}@email.com" }
       name { "Manager Name" }
       role { "Manager" }
       manager_user_id { nil }
     end
 
     trait :employee do
-      email { "employee@email.com" }
+      sequence(:email) { |n| "employee#{n}@email.com" }
       name { "Employee Name" }
       role { "Employee" }
       manager_user_id { nil }
