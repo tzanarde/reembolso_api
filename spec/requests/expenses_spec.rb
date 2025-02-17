@@ -2,10 +2,11 @@
 
 require 'rails_helper'
 include AuthHelpers
+include MatchHelpers
 
 RSpec.describe "Expenses", type: :request do
   let!(:manager) { create(:user, :manager) }
-  let!(:employee) do
+  let!(:employees) do
     [ create(:user, :employee, manager_user_id: manager.id),
       create(:user, :employee, manager_user_id: manager.id) ]
   end
@@ -13,74 +14,85 @@ RSpec.describe "Expenses", type: :request do
   describe "GET /expenses" do
     let!(:expenses) do
       [
-        create(:expense, :pending, user: employee[0], amount: 10.00),
-        create(:expense, :approved, user: employee[0], amount: 20.00),
-        create(:expense, :declined, user: employee[0], amount: 30.00),
-        create(:expense, :pending, user: employee[1], amount: 40.00),
-        create(:expense, :approved, user: employee[1], amount: 50.00),
-        create(:expense, :declined, user: employee[1], amount: 60.00)
+        create(:expense, :pending, user: employees[0], amount: 10.00),
+        create(:expense, :approved, user: employees[0], amount: 20.00),
+        create(:expense, :declined, user: employees[0], amount: 30.00),
+        create(:expense, :pending, user: employees[1], amount: 40.00),
+        create(:expense, :approved, user: employees[1], amount: 50.00),
+        create(:expense, :declined, user: employees[1], amount: 60.00)
       ]
     end
+    let!(:pending_expenses) { [ expenses[0], expenses[3] ] }
+    let!(:history_expenses) { [ expenses[1], expenses[2], expenses[4], expenses[5] ] }
+    let!(:employee_1_expenses) { [ expenses[0], expenses[1], expenses[2] ] }
+    let!(:employee_2_expenses) { [ expenses[3], expenses[4], expenses[5] ] }
 
     context "when the user is logged in" do
       let(:user_token) { authenticate_user(manager) }
       let(:headers) { authenticated_user_headers(user_token) }
 
       context "without filters" do
+        let(:testing_expenses) { expenses }
+        let(:testing_employees) { employees }
+
         it 'returns all expenses' do
           get "/expenses", headers: headers
 
-          request_response = JSON.parse(response.body)
-
+          request_response = JSON.parse(response.body)["expenses"]
           expect(response).to have_http_status(:ok)
           expect(request_response.count).to eq(6)
-          expect(request_response.first).to include("description", "date", "amount", "location", "stats", "user")
-          (1..6).each do |index|
-            expect(request_response[index]["description"]).to eq(expenses[index]["description"])
-          end
+          match_expense_fields_index(request_response, testing_expenses, manager, testing_employees)
         end
       end
 
       context "with filters" do
         context "filtering for a manager" do
           context "for default filters" do
-            let(:params) { { manager_user_id: manager.id } }
+            context "without type" do
+              let(:params) { { manager_user_id: manager.id } }
+              let(:testing_expenses) { expenses }
+              let(:testing_employees) { employees }
 
-            it 'returns all expenses related to the manager' do
-              get "/expenses", params: params, headers: headers
+              it 'returns all expenses related to the manager' do
+                get "/expenses", params: params, headers: headers
 
-              request_response = JSON.parse(response.body)
+                request_response = JSON.parse(response.body)["expenses"]
 
-              expect(response).to have_http_status(:ok)
-              expect(request_response.count).to eq(6)
-              (1..6).each do |index|
-                expect(request_response[index]["manager_user_id"]).to eq(manager["id"])
+                expect(response).to have_http_status(:ok)
+                expect(request_response.count).to eq(6)
+                match_expense_fields_index(request_response, testing_expenses, manager, testing_employees)
               end
             end
 
-            it 'returns all pending expenses related to the manager' do
-              get "/expenses", params: params, headers: headers
+            context "for pending type" do
+              let(:params) { { manager_user_id: manager.id, type: "P" } }
+              let(:testing_expenses) { pending_expenses }
+              let(:testing_employees) { employees }
 
-              request_response = JSON.parse(response.body)
+              it 'returns all pending expenses related to the manager' do
+                get "/expenses", params: params, headers: headers
 
-              expect(response).to have_http_status(:ok)
-              expect(request_response.count).to eq(2)
-              (1..2).each do |index|
-                expect(request_response[index]["manager_user_id"]).to eq(manager["id"])
-                expect(request_response[index]["status"]).to eq("P")
+                request_response = JSON.parse(response.body)["expenses"]
+
+                expect(response).to have_http_status(:ok)
+                expect(request_response.count).to eq(2)
+                match_expense_fields_index(request_response, testing_expenses, manager, testing_employees)
               end
             end
 
-            it 'returns all expense history related to a manager' do
-              get "/expenses", params: params, headers: headers
+            context "for history type" do
+              let(:params) { { manager_user_id: manager.id, type: "H" } }
+              let(:testing_expenses) { history_expenses }
+              let(:testing_employees) { employees }
 
-              request_response = JSON.parse(response.body)
+              it 'returns all expense history related to a manager' do
+                get "/expenses", params: params, headers: headers
 
-              expect(response).to have_http_status(:ok)
-              expect(request_response.count).to eq(4)
-              (1..4).each do |index|
-                expect(request_response[index]["manager_user_id"]).to eq(manager["id"])
-                expect(request_response[index]["status"]).to be_in("A", "D")
+                request_response = JSON.parse(response.body)["expenses"]
+
+                expect(response).to have_http_status(:ok)
+                expect(request_response.count).to eq(4)
+                match_expense_fields_index(request_response, testing_expenses, manager, testing_employees)
               end
             end
           end
@@ -88,265 +100,85 @@ RSpec.describe "Expenses", type: :request do
           context "for custom filters" do
             context "filtering by date" do
               context "specific day" do
-                let(:params) { { manager_user_id: manager.id, date: Date.today - 2 } }
+                let(:params) { { manager_user_id: manager.id, date: expenses[3].date } }
+                let(:testing_expenses) { [ expenses[3] ] }
+                let(:testing_employees) { employees }
+
                 it 'returns expenses related to the manager filtered by a specific day' do
                   get "/expenses", params: params, headers: headers
 
-                  request_response = JSON.parse(response.body)
+                  request_response = JSON.parse(response.body)["expenses"]
 
                   expect(response).to have_http_status(:ok)
                   expect(request_response.count).to eq(1)
-                  expect(request_response["date"]).to eq(Date.today - 2)
+                  match_expense_fields_index(request_response, testing_expenses, manager, testing_employees)
                 end
               end
 
               context "period of days with both start and final dates" do
-                let(:params) { { manager_user_id: manager.id, start_date: Date.today - 2, final_date: Date.today } }
+                let(:params) do
+                  { manager_user_id: manager.id, start_date: expenses[5].date, final_date: expenses[4].date }
+                end
+                let(:testing_expenses) { [ expenses[4], expenses[5] ] }
+                let(:testing_employees) { [ employees[1], employees[1] ] }
+
                 it 'returns expenses related to the manager filtered by a period of days' do
                   get "/expenses", params: params, headers: headers
 
-                  request_response = JSON.parse(response.body)
+                  request_response = JSON.parse(response.body)["expenses"]
 
                   expect(response).to have_http_status(:ok)
-                  expect(request_response.count).to eq(3)
-                  (1..3).each do |index|
-                    expect(request_response[index]["date"]).to be_between(Date.today - 2, Date.today)
-                  end
+                  expect(request_response.count).to eq(2)
+                  match_expense_fields_index(request_response, testing_expenses, manager, testing_employees)
                 end
               end
 
               context "period of days with only start date" do
-                let(:params) { { manager_user_id: manager.id, start_date: Date.today - 2 } }
+                let(:params) { { manager_user_id: manager.id, start_date: expenses[1].date } }
+                let(:testing_expenses) { [ expenses[0], expenses[1] ] }
+                let(:testing_employees) { [ employees[0], employees[0] ] }
+
                 it 'returns expenses related to the manager filtered by a period of days' do
                   get "/expenses", params: params, headers: headers
 
-                  request_response = JSON.parse(response.body)
+                  request_response = JSON.parse(response.body)["expenses"]
 
                   expect(response).to have_http_status(:ok)
-                  expect(request_response.count).to eq(3)
-                  (1..3).each do |index|
-                    expect(request_response[index]["date"]).to be >= (Date.today - 2)
-                  end
-                end
-              end
-
-              context "period of days with only final date" do
-                let(:params) { { manager_user_id: manager.id, final_date: Date.today - 2 } }
-                it 'returns expenses related to the manager filtered by a period of days' do
-                  get "/expenses", params: params, headers: headers
-
-                  request_response = JSON.parse(response.body)
-
-                  expect(response).to have_http_status(:ok)
-                  expect(request_response.count).to eq(3)
-                  (1..3).each do |index|
-                    expect(request_response[index]["date"]).to be <= (Date.today - 2)
-                  end
+                  expect(request_response.count).to eq(2)
+                  match_expense_fields_index(request_response, testing_expenses, manager, testing_employees)
                 end
               end
             end
 
             context "filtering by employee" do
-              let(:params) { { manager_user_id: manager.id, employee_id: employee[0].id } }
+              let(:params) { { manager_user_id: manager.id, employee_id: employees[0].id } }
+              let(:testing_expenses) { employee_1_expenses }
+              let(:testing_employees) { [ employees[0], employees[0], employees[0] ] }
+
               it 'returns expenses related to the manager filtered by an employee' do
                 get "/expenses", params: params, headers: headers
 
-                request_response = JSON.parse(response.body)
+                request_response = JSON.parse(response.body)["expenses"]
 
                 expect(response).to have_http_status(:ok)
-                expect(request_response.count).to eq(1)
-                expect(request_response["user_id"]).to eq(employee[0].id)
-              end
-            end
-
-            context "filtering by tags" do
-              context "with only one tag" do
-                let!(:tag) { create(:tag) }
-                let(:params) { { manager_user_id: manager.id, tags: tag } }
-                it 'returns expenses related to the manager filtered by a tag' do
-                  get "/expenses", params: params, headers: headers
-
-                  request_response = JSON.parse(response.body)
-
-                  expect(response).to have_http_status(:ok)
-                  expect(request_response.count).to eq(1)
-                  expect(request_response["tags"].count).to eq(1)
-                  expect(request_response["tags"]).to eq(tag)
-                end
-              end
-
-              context "with multiple tags" do
-                let!(:tags) { create_list(:tag, 10) }
-                let(:params) { { manager_user_id: manager.id, tags: tag } }
-                it 'returns expenses related to the manager filtered by a tag' do
-                  get "/expenses", params: params, headers: headers
-
-                  request_response = JSON.parse(response.body)
-
-                  expect(response).to have_http_status(:ok)
-                  expect(request_response.count).to eq(1)
-                  expect(request_response["tags"].count).to eq(10)
-                  expect(request_response["tags"]).to eq(tags)
-                end
+                expect(request_response.count).to eq(3)
+                match_expense_fields_index(request_response, testing_expenses, manager, testing_employees)
               end
             end
 
             context "filtering by amount" do
-              let(:params) { { manager_user_id: manager.id, min_amount: 0.00, max_amount: 50.00 } }
+              let(:params) { { manager_user_id: manager.id, min_amount: 40.00, max_amount: 60.00 } }
+              let(:testing_expenses) { employee_2_expenses }
+              let(:testing_employees) { [ employees[1], employees[1], employees[1] ] }
+
               it 'returns expenses related to the manager filtered by amount' do
                 get "/expenses", params: params, headers: headers
 
-                request_response = JSON.parse(response.body)
+                request_response = JSON.parse(response.body)["expenses"]
 
                 expect(response).to have_http_status(:ok)
-                expect(request_response.count).to eq(5)
-                (1..5).each do |index|
-                  expect(request_response[index]["amount"]).to be_between(params[:min_amount], params[:max_amount])
-                end
-              end
-            end
-          end
-        end
-
-        context "filtering for a employee" do
-          context "for default filters" do
-            let(:params) { { user_id: employee[0].id } }
-            it 'returns all expenses that belongs to the employee' do
-              get "/expenses", params: params, headers: headers
-
-              request_response = JSON.parse(response.body)
-
-              expect(response).to have_http_status(:ok)
-              expect(request_response.count).to eq(3)
-              (1..3).each do |index|
-                expect(request_response[index]["user_id"]).to eq(employee[0].id)
-              end
-            end
-
-            it 'returns all pending expenses that belongs to the employee' do
-              get "/expenses", params: params, headers: headers
-
-              request_response = JSON.parse(response.body)
-
-              expect(response).to have_http_status(:ok)
-              expect(request_response.count).to eq(1)
-              expect(request_response[index]["user_id"]).to eq(employee[0].id)
-              expect(request_response["status"]).to eq("P")
-            end
-
-            it 'returns all expense history that belongs to the employee' do
-              get "/expenses", params: params, headers: headers
-
-              request_response = JSON.parse(response.body)
-
-              expect(response).to have_http_status(:ok)
-              expect(request_response.count).to eq(2)
-              (1..2).each do |index|
-                expect(request_response[index]["user_id"]).to eq(employee[0].id)
-                expect(request_response[index]["status"]).to be_in("A", "D")
-              end
-            end
-          end
-
-          context "for custom filters" do
-            context "filtering by date" do
-              context "specific day" do
-                let(:params) { { user_id: employee[0].id, date: Date.today } }
-                it 'returns expenses that belongs to the employee filtered by a specific day' do
-                  get "/expenses", params: params, headers: headers
-
-                  request_response = JSON.parse(response.body)
-
-                  expect(response).to have_http_status(:ok)
-                  expect(request_response.count).to eq(1)
-                  expect(request_response["date"]).to eq(Date.today)
-                end
-              end
-
-              context "period of days with both start and final dates" do
-                let(:params) { { user_id: employee[0].id, start_date: Date.today - 2, final_date: Date.today } }
-                it 'returns expenses that belongs to the employee filtered by a period of days' do
-                  get "/expenses", params: params, headers: headers
-
-                  request_response = JSON.parse(response.body)
-
-                  expect(response).to have_http_status(:ok)
-                  expect(request_response.count).to eq(1)
-                  expect(request_response["date"]).to be_between(Date.today - 2, Date.today)
-                end
-              end
-
-              context "period of days with only start date" do
-                let(:params) { { user_id: employee[0].id, start_date: Date.today } }
-                it 'returns expenses that belongs to the employee filtered by a period of days' do
-                  get "/expenses", params: params, headers: headers
-
-                  request_response = JSON.parse(response.body)
-
-                  expect(response).to have_http_status(:ok)
-                  expect(request_response.count).to eq(1)
-                  expect(request_response["date"]).to be >= Date.today
-                end
-              end
-
-              context "period of days with only final date" do
-                let(:params) { { user_id: employee[0].id, final_date: Date.today } }
-                it 'returns expenses that belongs to the employee filtered by a period of days' do
-                  get "/expenses", params: params, headers: headers
-
-                  request_response = JSON.parse(response.body)
-
-                  expect(response).to have_http_status(:ok)
-                  expect(request_response.count).to eq(1)
-                  expect(request_response["date"]).to be <= Date.today
-                end
-              end
-            end
-
-            context "filtering by tags" do
-              context "with only one tag" do
-                let!(:tag) { create(:tag) }
-                let(:params) { { user_id: employee[0].id, tags: tag } }
-                it 'returns expenses that belongs to the employee filtered by a tag' do
-                  get "/expenses", params: params, headers: headers
-
-                  request_response = JSON.parse(response.body)
-
-                  expect(response).to have_http_status(:ok)
-                  expect(request_response.count).to eq(1)
-                  expect(request_response["tags"].count).to eq(1)
-                  expect(request_response["tags"]).to eq(tag)
-                end
-              end
-
-              context "with multiple tags" do
-                let!(:tags) { create_list(:tag, 10) }
-                let(:params) { { user_id: employee[0].id, tags: tag } }
-                it 'returns expenses that belongs to the employee filtered by a tag' do
-                  get "/expenses", params: params, headers: headers
-
-                  request_response = JSON.parse(response.body)
-
-                  expect(response).to have_http_status(:ok)
-                  expect(request_response.count).to eq(1)
-                  expect(request_response["tags"].count).to eq(10)
-                  expect(request_response["tags"]).to eq(tags)
-                end
-              end
-            end
-
-            context "filtering by amount" do
-              let(:params) { { user_id: employee[0].id, min_amount: 0.00, max_amount: 20.00 } }
-              it 'returns expenses that belongs to the employee filtered by amount' do
-                get "/expenses", params: params, headers: headers
-
-                request_response = JSON.parse(response.body)
-
-                expect(response).to have_http_status(:ok)
-                expect(request_response.count).to eq(2)
-                (1..2).each do |index|
-                  expect(request_response[index]["amount"]).to be_between(params[:min_amount], params[:max_amount])
-                end
+                expect(request_response.count).to eq(3)
+                match_expense_fields_index(request_response, testing_expenses, manager, testing_employees)
               end
             end
           end
@@ -365,22 +197,22 @@ RSpec.describe "Expenses", type: :request do
     end
   end
 
-  describe "GET /expenses:id" do
-    let!(:expense) { create(:expense, :pending, user: employee[0]) }
+  describe "GET /expenses/:id" do
+    let!(:expense) { create(:expense, :pending, user: employees[0]) }
+    let(:testing_expenses) { expense }
+    let(:testing_employees) { employees[0] }
 
     context "when the user is logged in" do
       context 'when the tag exists' do
         let(:user_token) { authenticate_user(manager) }
         let(:headers) { authenticated_user_headers(user_token) }
         it 'returns an expense' do
-          get "/expenses#{expense.id}", headers: headers
+          get "/expenses/#{expense.id}", headers: headers
 
           request_response = JSON.parse(response.body)
 
           expect(response).to have_http_status(:ok)
-          expect(request_response.count).to eq(6)
-          expect(request_response.first).to include("description", "date", "amount", "location", "stats", "user")
-          expect(request_response["description"]).to eq(expenses["description"])
+          match_expense_fields_show(request_response, testing_expenses, manager, testing_employees)
         end
       end
 
@@ -411,16 +243,17 @@ RSpec.describe "Expenses", type: :request do
     context "when the user is logged in" do
       let(:user_token) { authenticate_user(manager) }
       let(:headers) { authenticated_user_headers(user_token) }
-      let!(:valid_params) { attributes_for(:expense).to_json }
+      let!(:valid_params) { attributes_for(:expense, :pending).merge(user_id: employees[0]["id"]).to_json }
+      let(:testing_expenses) { JSON.parse(valid_params) }
+      let(:testing_employees) { employees[0] }
 
       it 'creates an expense' do
         post "/expenses", params: valid_params, headers: headers
 
-        request_response = JSON.parse(response.body)
+        request_response = JSON.parse(response.body)["expense"]
 
         expect(response).to have_http_status(:created)
-        expect(request_response).to have_key("description")
-        expect(request_response["description"]).to eq(JSON.parse(valid_params)["description"])
+        match_expense_fields_create(request_response, testing_expenses, manager, testing_employees)
       end
     end
 
@@ -440,13 +273,13 @@ RSpec.describe "Expenses", type: :request do
       context 'when the expense exists' do
         let(:user_token) { authenticate_user(manager) }
         let(:headers) { authenticated_user_headers(user_token) }
-        let!(:expense) { create(:expense) }
+        let!(:expense) { create(:expense, :pending, user: employees[0]) }
         let(:valid_params) { { description: 'New Description' }.to_json }
 
         it 'updates an expense' do
           patch "/expenses/#{expense.id}", params: valid_params, headers: headers
 
-          request_response = JSON.parse(response.body)
+          request_response = JSON.parse(response.body)["expense"]
 
           expect(response).to have_http_status(:ok)
           expect(request_response).to have_key("description")
@@ -484,7 +317,7 @@ RSpec.describe "Expenses", type: :request do
       context 'when the expenses exists' do
         let(:user_token) { authenticate_user(manager) }
         let(:headers) { authenticated_user_headers(user_token) }
-        let!(:expense) { create(:expense) }
+        let!(:expense) { create(:expense, :pending, user: employees[0]) }
 
         it 'deletes an expense' do
           delete "/expenses/#{expense.id}", headers: headers
