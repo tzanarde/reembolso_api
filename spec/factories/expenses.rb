@@ -3,7 +3,7 @@
 FactoryBot.define do
   factory :expense do
     sequence(:description) { |n| "Descrição da despesas #{n}" }
-    sequence(:date) { |n| (Date.today - n).strftime("%d/%m/%Y") }
+    sequence(:date) { |n| (Date.today - n).strftime("%Y-%m-%d") }
     amount { rand(10.00..100.00).round(2) }
     sequence(:location) { |n| "Local #{n}" }
     user
