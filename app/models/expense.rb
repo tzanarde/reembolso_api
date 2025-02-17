@@ -5,6 +5,7 @@ class Expense < ApplicationRecord
   validates :status, inclusion: { in: %w[P A D], message: "%{value} não é um status válido!" }
 
   belongs_to :user
+  has_and_belongs_to_many :tags
 
   delegate :manager_user, to: :user, allow_nil: true
 
