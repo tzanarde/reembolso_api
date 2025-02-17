@@ -47,7 +47,7 @@ RSpec.describe "Users", type: :request do
     let!(:manager) { create(:user, :manager) }
     context "for a manager user" do
       context "with valid credentials" do
-        let(:valid_params) { { user: attributes_for(:user, :manager).slice(:email, :password) }.to_json }
+        let(:valid_params) { { user: manager.slice(:email, :password) }.to_json }
         it "logs in with a manager user" do
           post "/users/sign_in", params: valid_params, headers: headers
 
@@ -97,7 +97,7 @@ RSpec.describe "Users", type: :request do
     context "when the user is logged in" do
       let!(:manager) { create(:user, :manager) }
       context "with a valid token" do
-        let(:valid_params) { { user: attributes_for(:user, :manager).slice(:email, :password) }.to_json }
+        let(:valid_params) { { user: manager.slice(:email, :password) }.to_json }
         it "logs out a user" do
           post "/users/sign_in", params: valid_params, headers: headers_sign_in
 
@@ -121,7 +121,7 @@ RSpec.describe "Users", type: :request do
 
       context "when the user is logged out" do
         context "with a revoged token" do
-          let(:valid_params) { { user: attributes_for(:user, :manager).slice(:email, :password) }.to_json }
+          let(:valid_params) { { user: manager.slice(:email, :password) }.to_json }
           it "returns unauthorized" do
             post "/users/sign_in", params: valid_params, headers: headers_sign_in
 
@@ -143,7 +143,7 @@ RSpec.describe "Users", type: :request do
       end
 
       context "without a token" do
-        let(:valid_params) { { user: attributes_for(:user, :manager).slice(:email, :password) }.to_json }
+        let(:valid_params) { { user: manager.slice(:email, :password) }.to_json }
         it "returns unauthorized" do
           post "/users/sign_in", params: valid_params, headers: headers_sign_in
 
