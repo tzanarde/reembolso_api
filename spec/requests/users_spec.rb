@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'rails_helper'
+include AuthHelpers
 
 RSpec.describe "Users", type: :request do
   describe "POST /users" do
@@ -158,6 +159,143 @@ RSpec.describe "Users", type: :request do
           sign_out_request_response = JSON.parse(response.body)
 
           expect(sign_out_request_response["error"]).to eq("Token não fornecido!")
+        end
+      end
+    end
+  end
+
+  describe "DELETE /users" do
+    context 'for an employee user' do
+      context 'when an employee user tries to delete' do
+        context 'when the employee user to be deleted is the logged in employee user' do
+          context "when the employee user is logged in" do
+            let!(:employee) { create(:user, :employee) }
+
+            context 'when the employee user exists' do
+              let(:user_token) { authenticate_user(employee) }
+              let(:headers) { authenticated_user_headers(user_token) }
+
+              it 'deletes an employee user' do
+                delete "/user/#{employee.id}", headers: headers
+
+                expect(response).to have_http_status(:no_content)
+              end
+            end
+
+            context 'when the employee user does not exist' do
+              let(:user_token) { authenticate_user(employee) }
+              let(:headers) { authenticated_user_headers(user_token) }
+
+              it 'returns not found' do
+                delete "/user/999", headers: headers
+
+                expect(response).to have_http_status(:not_found)
+              end
+            end
+          end
+
+          context "when the employee user is logged out" do
+            let(:headers) { unauthenticated_user_headers }
+
+            it 'returns unauthorized' do
+              delete "/user/999", headers: headers
+
+              expect(response).to have_http_status(:unauthorized)
+            end
+          end
+        end
+
+        context 'when the employee user to be deleted is not the logged in employee user' do
+          let!(:employee_logged_in) { create(:user, :employee) }
+          let!(:employee_to_delete) { create(:user, :employee) }
+          let(:user_token) { authenticate_user(employee_logged_in) }
+          let(:headers) { authenticated_user_headers(user_token) }
+
+          it 'returns unauthorized' do
+            delete "/user/#{user_to_delete.id}", headers: headers
+
+            expect(response).to have_http_status(:unauthorized)
+          end
+        end
+      end
+
+      context 'when a manager user tries to delete the employee user' do
+        let!(:manager) { create(:user, :manager) }
+        let!(:employee_to_delete) { create(:user, :employee) }
+        let(:user_token) { authenticate_user(manager) }
+        let(:headers) { authenticated_user_headers(user_token) }
+
+        it 'deletes an employee user' do
+          delete "/user/#{employee_to_delete.id}", headers: headers
+
+          expect(response).to have_http_status(:no_content)
+        end
+      end
+    end
+
+    context 'for a manager user' do
+      context 'when a manager user tries to delete' do
+        context 'when the manager user to be deleted is the logged in manager user' do
+          context "when the manager user is logged in" do
+            let!(:manager) { create(:user, :manager) }
+
+            context 'when the manager user exists' do
+              let(:user_token) { authenticate_user(manager) }
+              let(:headers) { authenticated_user_headers(user_token) }
+
+              it 'deletes the manager user' do
+                delete "/user/#{manager.id}", headers: headers
+
+                expect(response).to have_http_status(:no_content)
+              end
+            end
+
+            context 'when the manager user does not exist' do
+              let(:user_token) { authenticate_user(manager) }
+              let(:headers) { authenticated_user_headers(user_token) }
+
+              it 'returns not found' do
+                delete "/user/999", headers: headers
+
+                expect(response).to have_http_status(:not_found)
+              end
+            end
+          end
+
+          context "when the manager user is logged out" do
+            let(:headers) { unauthenticated_user_headers }
+
+            it 'returns unauthorized' do
+              delete "/user/999", headers: headers
+
+              expect(response).to have_http_status(:unauthorized)
+            end
+          end
+        end
+
+        context 'when the manager user to be deleted is the logged in manager user' do
+          let!(:manager_logged_in) { create(:user, :manager) }
+          let!(:manager_to_delete) { create(:user, :manager) }
+          let(:user_token) { authenticate_user(manager_logged_in) }
+          let(:headers) { authenticated_user_headers(user_token) }
+
+          it 'returns unauthorized' do
+            delete "/user/#{manager_to_delete.id}", headers: headers
+
+            expect(response).to have_http_status(:unauthorized)
+          end
+        end
+      end
+
+      context 'when an employee user tries to delete' do
+        let!(:employee) { create(:user, :employee) }
+        let(:user_token) { authenticate_user(employee) }
+        let(:headers) { authenticated_user_headers(user_token) }
+
+        it 'returns unauthorized' do
+          delete "/user/999", headers: headers
+
+          expect(response).to have_http_status(:unauthorized)
         end
       end
     end
