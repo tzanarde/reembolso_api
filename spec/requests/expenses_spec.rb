@@ -98,6 +98,22 @@ RSpec.describe "Expenses", type: :request do
           end
 
           context "for custom filters" do
+            context "searching for description" do
+              let(:params) { { manager_user_id: manager.id, text_filter: expenses[3].description } }
+              let(:testing_expenses) { [ expenses[3] ] }
+              let(:testing_employees) { employees }
+
+              it 'returns expenses related to the manager filtered by description' do
+                get "/expenses", params: params, headers: headers
+
+                request_response = JSON.parse(response.body)["expenses"]
+
+                expect(response).to have_http_status(:ok)
+                expect(request_response.count).to eq(1)
+                match_expense_fields_index(request_response, testing_expenses, manager, testing_employees)
+              end
+            end
+
             context "filtering by date" do
               context "specific day" do
                 let(:params) { { manager_user_id: manager.id, date: expenses[3].date } }
@@ -181,6 +197,39 @@ RSpec.describe "Expenses", type: :request do
                 match_expense_fields_index(request_response, testing_expenses, manager, testing_employees)
               end
             end
+
+            # context "filtering by tags" do
+            #   context "with only one tag" do
+            #     let!(:tag) { create(:tag) }
+            #     let(:params) { { manager_user_id: manager.id, tags: [ tag ] } }
+            #     it 'returns expenses related to the manager filtered by a tag' do
+            #       expenses.first.tags << tag
+            #       get "/expenses", params: params, headers: headers
+
+            #       request_response = JSON.parse(response.body)["expenses"]
+
+            #       expect(response).to have_http_status(:ok)
+            #       expect(request_response.count).to eq(1)
+            #       expect(request_response["tags"].count).to eq(1)
+            #       expect(request_response["tags"]).to eq(tag)
+            #     end
+            #   end
+
+            #   context "with multiple tags" do
+            #     let!(:tags) { create_list(:tag, 10) }
+            #     let(:params) { { manager_user_id: manager.id, tags: tag } }
+            #     it 'returns expenses related to the manager filtered by a tag' do
+            #       get "/expenses", params: params, headers: headers
+
+            #       request_response = JSON.parse(response.body)["expenses"]
+
+            #       expect(response).to have_http_status(:ok)
+            #       expect(request_response.count).to eq(1)
+            #       expect(request_response["tags"].count).to eq(10)
+            #       expect(request_response["tags"]).to eq(tags)
+            #     end
+            #   end
+            # end
           end
         end
       end
