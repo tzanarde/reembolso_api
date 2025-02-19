@@ -40,5 +40,12 @@ module ReembolsoApi
       manager.default_strategies(:jwt)
       manager.failure_app = Devise::FailureApp
     end
+
+    config.middleware.insert_before 0, Rack::Cors do
+      allow do
+        origins "http://localhost:5173"
+        resource "*", headers: :any, methods: [ :get, :post, :options, :delete, :put, :patch ]
+      end
+    end
   end
 end
