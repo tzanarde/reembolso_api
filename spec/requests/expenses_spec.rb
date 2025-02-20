@@ -198,38 +198,44 @@ RSpec.describe "Expenses", type: :request do
               end
             end
 
-            # context "filtering by tags" do
-            #   context "with only one tag" do
-            #     let!(:tag) { create(:tag) }
-            #     let(:params) { { manager_user_id: manager.id, tags: [ tag ] } }
-            #     it 'returns expenses related to the manager filtered by a tag' do
-            #       expenses.first.tags << tag
-            #       get "/expenses", params: params, headers: headers
+            context "filtering by tags" do
+              context "with only one tag" do
+                let!(:tag) { create(:tag) }
+                let(:params) { { manager_user_id: manager.id, tags: [ tag.description ] } }
+                let(:testing_expenses) { expenses }
+                let(:testing_employees) { [ employees[0] ] }
+                it 'returns expenses related to the manager filtered by a tag' do
+                  expenses.first.tags << tag
+                  get "/expenses", params: params, headers: headers
 
-            #       request_response = JSON.parse(response.body)["expenses"]
+                  request_response = JSON.parse(response.body)["expenses"]
 
-            #       expect(response).to have_http_status(:ok)
-            #       expect(request_response.count).to eq(1)
-            #       expect(request_response["tags"].count).to eq(1)
-            #       expect(request_response["tags"]).to eq(tag)
-            #     end
-            #   end
+                  expect(response).to have_http_status(:ok)
+                  expect(request_response.count).to eq(1)
+                  match_expense_fields_index(request_response, testing_expenses, manager, testing_employees)
+                end
+              end
 
-            #   context "with multiple tags" do
-            #     let!(:tags) { create_list(:tag, 10) }
-            #     let(:params) { { manager_user_id: manager.id, tags: tag } }
-            #     it 'returns expenses related to the manager filtered by a tag' do
-            #       get "/expenses", params: params, headers: headers
+              context "with multiple tags" do
+                let!(:tags) { create_list(:tag, 10) }
+                let(:params) { { manager_user_id: manager.id, tags: tags.map { |tag| tag.description } } }
+                let(:testing_expenses) { expenses }
+                let(:testing_employees) { employees }
+                it 'returns expenses related to the manager filtered by a tag' do
+                  tags.each do |tag|
+                    expenses.first.tags << tag
+                    expenses.second.tags << tag
+                  end
+                  get "/expenses", params: params, headers: headers
 
-            #       request_response = JSON.parse(response.body)["expenses"]
+                  request_response = JSON.parse(response.body)["expenses"]
 
-            #       expect(response).to have_http_status(:ok)
-            #       expect(request_response.count).to eq(1)
-            #       expect(request_response["tags"].count).to eq(10)
-            #       expect(request_response["tags"]).to eq(tags)
-            #     end
-            #   end
-            # end
+                  expect(response).to have_http_status(:ok)
+                  expect(request_response.count).to eq(2)
+                  match_expense_fields_index(request_response, testing_expenses, manager, testing_employees)
+                end
+              end
+            end
           end
         end
       end
@@ -290,19 +296,67 @@ RSpec.describe "Expenses", type: :request do
 
   describe "POST /expenses" do
     context "when the user is logged in" do
-      let(:user_token) { authenticate_user(manager) }
-      let(:headers) { authenticated_user_headers(user_token) }
-      let!(:valid_params) { attributes_for(:expense, :pending).merge(user_id: employees[0]["id"]).to_json }
-      let(:testing_expenses) { JSON.parse(valid_params) }
-      let(:testing_employees) { employees[0] }
+      context "without tags" do
+        let(:user_token) { authenticate_user(manager) }
+        let(:headers) { authenticated_user_headers(user_token) }
+        let!(:valid_params) { attributes_for(:expense, :pending).merge(user_id: employees[0]["id"]).to_json }
+        let(:testing_expenses) { JSON.parse(valid_params) }
+        let(:testing_employees) { employees[0] }
 
-      it 'creates an expense' do
-        post "/expenses", params: valid_params, headers: headers
+        it 'creates an expense' do
+          post "/expenses", params: valid_params, headers: headers
 
-        request_response = JSON.parse(response.body)["expense"]
+          request_response = JSON.parse(response.body)["expense"]
 
-        expect(response).to have_http_status(:created)
-        match_expense_fields_create(request_response, testing_expenses, manager, testing_employees)
+          expect(response).to have_http_status(:created)
+          match_expense_fields_create(request_response, testing_expenses, manager, testing_employees)
+        end
+      end
+
+      context "with tags" do
+        context "with only one tag" do
+          let(:user_token) { authenticate_user(manager) }
+          let(:headers) { authenticated_user_headers(user_token) }
+          let!(:tag) { create(:tag) }
+          let!(:valid_params) do
+            attributes_for(:expense, :pending).merge(user_id: employees[0]["id"])
+                                              .merge(tags: [ tag.description ])
+                                              .to_json
+          end
+          let(:testing_expenses) { JSON.parse(valid_params) }
+          let(:testing_employees) { employees[0] }
+
+          it 'creates an expense' do
+            post "/expenses", params: valid_params, headers: headers
+
+            request_response = JSON.parse(response.body)["expense"]
+
+            expect(response).to have_http_status(:created)
+            match_expense_fields_create(request_response, testing_expenses, manager, testing_employees)
+          end
+        end
+
+        context "with multiple tags" do
+          let(:user_token) { authenticate_user(manager) }
+          let(:headers) { authenticated_user_headers(user_token) }
+          let!(:tags) { create_list(:tag, 10) }
+          let!(:valid_params) do
+            attributes_for(:expense, :pending).merge(user_id: employees[0]["id"])
+                                              .merge(tags: tags.map { |tag| tag.description })
+                                              .to_json
+          end
+          let(:testing_expenses) { JSON.parse(valid_params) }
+          let(:testing_employees) { employees[0] }
+
+          it 'creates an expense' do
+            post "/expenses", params: valid_params, headers: headers
+
+            request_response = JSON.parse(response.body)["expense"]
+
+            expect(response).to have_http_status(:created)
+            match_expense_fields_create(request_response, testing_expenses, manager, testing_employees)
+          end
+        end
       end
     end
 
@@ -319,33 +373,217 @@ RSpec.describe "Expenses", type: :request do
 
   describe "PATCH /expenses" do
     context "when the user is logged in" do
-      context 'when the expense exists' do
-        let(:user_token) { authenticate_user(manager) }
-        let(:headers) { authenticated_user_headers(user_token) }
-        let!(:expense) { create(:expense, :pending, user: employees[0]) }
-        let(:valid_params) { { description: 'New Description' }.to_json }
+      context "without tags" do
+        context 'when the expense exists' do
+          let(:user_token) { authenticate_user(manager) }
+          let(:headers) { authenticated_user_headers(user_token) }
+          let!(:expense) { create(:expense, :pending, user: employees[0]) }
+          let(:valid_params) { { description: 'New Description' }.to_json }
 
-        it 'updates an expense' do
-          patch "/expenses/#{expense.id}", params: valid_params, headers: headers
+          it 'updates an expense' do
+            patch "/expenses/#{expense.id}", params: valid_params, headers: headers
 
-          request_response = JSON.parse(response.body)["expense"]
+            request_response = JSON.parse(response.body)["expense"]
 
-          expect(response).to have_http_status(:ok)
-          expect(request_response).to have_key("description")
-          expect(request_response["description"]).not_to eq(expense["description"])
-          expect(request_response["description"]).to eq(JSON.parse(valid_params)["description"])
+            expect(response).to have_http_status(:ok)
+            expect(request_response).to have_key("description")
+            expect(request_response["description"]).not_to eq(expense["description"])
+            expect(request_response["description"]).to eq(JSON.parse(valid_params)["description"])
+          end
+        end
+
+        context 'when the expense does not exist' do
+          let(:user_token) { authenticate_user(manager) }
+          let(:headers) { authenticated_user_headers(user_token) }
+          let(:valid_params) { { description: 'New Description' }.to_json }
+
+          it 'returns not found' do
+            patch "/expenses/1", params: valid_params, headers: headers
+
+            expect(response).to have_http_status(:not_found)
+          end
         end
       end
 
-      context 'when the expense does not exist' do
-        let(:user_token) { authenticate_user(manager) }
-        let(:headers) { authenticated_user_headers(user_token) }
-        let(:valid_params) { { description: 'New Description' }.to_json }
+      context "with tags" do
+        context "when expense has no tags" do
+          context "with only one tag" do
+            let(:user_token) { authenticate_user(manager) }
+            let(:headers) { authenticated_user_headers(user_token) }
+            let!(:expense) { create(:expense, :pending, user: employees[0]) }
+            let!(:tag) { create(:tag) }
+            let(:valid_params) { { description: 'New Description', tags: [ tag.description ] }.to_json }
+            let(:testing_expenses) { expense }
+            let(:expense_updates) { JSON.parse(valid_params) }
+            let(:testing_employees) { employees[0] }
 
-        it 'returns not found' do
-          patch "/expenses/1", params: valid_params, headers: headers
+            it 'updates an expense' do
+              patch "/expenses/#{expense.id}", params: valid_params, headers: headers
 
-          expect(response).to have_http_status(:not_found)
+              request_response = JSON.parse(response.body)["expense"]
+
+              expect(response).to have_http_status(:ok)
+              match_expense_fields_update(request_response,
+                                          testing_expenses,
+                                          manager,
+                                          testing_employees,
+                                          expense_updates)
+            end
+          end
+
+          context "with multiple tags" do
+            let(:user_token) { authenticate_user(manager) }
+            let(:headers) { authenticated_user_headers(user_token) }
+            let!(:expense) { create(:expense, :pending, user: employees[0]) }
+            let!(:tags) { create_list(:tag, 10) }
+            let!(:valid_params) do
+              attributes_for(:expense, :pending).merge(user_id: employees[0]["id"])
+                                                .merge(tags: tags.map { |tag| tag.description })
+                                                .to_json
+            end
+            let(:testing_expenses) { expense }
+            let(:expense_updates) { JSON.parse(valid_params) }
+            let(:testing_employees) { employees[0] }
+
+            it 'updates an expense' do
+              patch "/expenses/#{expense.id}", params: valid_params, headers: headers
+
+              request_response = JSON.parse(response.body)["expense"]
+
+              expect(response).to have_http_status(:ok)
+              match_expense_fields_update(request_response,
+                                          testing_expenses,
+                                          manager,
+                                          testing_employees,
+                                          expense_updates)
+            end
+          end
+        end
+
+        context "when expense already has tags" do
+          context "to add new tags" do
+            let(:user_token) { authenticate_user(manager) }
+            let(:headers) { authenticated_user_headers(user_token) }
+            let!(:tag) { create(:tag) }
+            let!(:expense) { create(:expense, :pending, user: employees[0], tags: [ tag ]) }
+            let!(:tags) { create_list(:tag, 10) }
+            let(:all_tags) { tags << tag }
+            let!(:valid_params) do
+              attributes_for(:expense, :pending).merge(user_id: employees[0]["id"])
+                                                .merge(tags: all_tags.map { |tag| tag.description })
+                                                .to_json
+            end
+            let(:testing_expenses) { expense }
+            let(:expense_updates) { JSON.parse(valid_params) }
+            let(:testing_employees) { employees[0] }
+
+            it 'updates an expense' do
+              patch "/expenses/#{expense.id}", params: valid_params, headers: headers
+
+              request_response = JSON.parse(response.body)["expense"]
+
+              expect(response).to have_http_status(:ok)
+              match_expense_fields_update(request_response,
+                                          testing_expenses,
+                                          manager,
+                                          testing_employees,
+                                          expense_updates)
+            end
+          end
+
+          context "to remove tags" do
+            let(:user_token) { authenticate_user(manager) }
+            let(:headers) { authenticated_user_headers(user_token) }
+            let!(:tags) { create_list(:tag, 10) }
+            let!(:expense) do
+              create(:expense, :pending, user: employees[0], tags: tags.map { |tag| tag })
+            end
+            let!(:valid_params) do
+              tags.delete_at(0)
+              attributes_for(:expense, :pending).merge(user_id: employees[0]["id"])
+                                                .merge(tags: tags.map { |tag| tag.description })
+                                                .to_json
+            end
+            let(:testing_expenses) { expense }
+            let(:expense_updates) { JSON.parse(valid_params) }
+            let(:testing_employees) { employees[0] }
+
+            it 'updates an expense' do
+              patch "/expenses/#{expense.id}", params: valid_params, headers: headers
+
+              request_response = JSON.parse(response.body)["expense"]
+
+              expect(response).to have_http_status(:ok)
+              match_expense_fields_update(request_response,
+                                          testing_expenses,
+                                          manager,
+                                          testing_employees,
+                                          expense_updates)
+            end
+          end
+
+          context "to both add and remove tags" do
+            let(:user_token) { authenticate_user(manager) }
+            let(:headers) { authenticated_user_headers(user_token) }
+            let!(:tags) { create_list(:tag, 10) }
+            let!(:tag) { create(:tag) }
+            let!(:expense) do
+              create(:expense, :pending, user: employees[0], tags: tags.map { |tag| tag })
+            end
+            let!(:valid_params) do
+              tags.delete_at(0)
+              tags << tag
+              attributes_for(:expense, :pending).merge(user_id: employees[0]["id"])
+                                                .merge(tags: tags.map { |tag| tag.description })
+                                                .to_json
+            end
+            let(:testing_expenses) { expense }
+            let(:expense_updates) { JSON.parse(valid_params) }
+            let(:testing_employees) { employees[0] }
+
+            it 'updates an expense' do
+              patch "/expenses/#{expense.id}", params: valid_params, headers: headers
+
+              request_response = JSON.parse(response.body)["expense"]
+
+              expect(response).to have_http_status(:ok)
+              match_expense_fields_update(request_response,
+                                          testing_expenses,
+                                          manager,
+                                          testing_employees,
+                                          expense_updates)
+            end
+          end
+
+          context "to remove all tags" do
+            let(:user_token) { authenticate_user(manager) }
+            let(:headers) { authenticated_user_headers(user_token) }
+            let!(:tags) { create_list(:tag, 10) }
+            let!(:expense) do
+              create(:expense, :pending, user: employees[0], tags: tags.map { |tag| tag })
+            end
+            let!(:valid_params) do
+              attributes_for(:expense, :pending).merge(user_id: employees[0]["id"])
+                                                .merge(tags: [])
+                                                .to_json
+            end
+            let(:testing_expenses) { expense }
+            let(:expense_updates) { JSON.parse(valid_params) }
+            let(:testing_employees) { employees[0] }
+
+            it 'updates an expense' do
+              patch "/expenses/#{expense.id}", params: valid_params, headers: headers
+
+              request_response = JSON.parse(response.body)["expense"]
+
+              expect(response).to have_http_status(:ok)
+              match_expense_fields_update(request_response,
+                                          testing_expenses,
+                                          manager,
+                                          testing_employees,
+                                          expense_updates)
+            end
+          end
         end
       end
     end
