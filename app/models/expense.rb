@@ -7,6 +7,9 @@ class Expense < ApplicationRecord
   belongs_to :user
   has_and_belongs_to_many :tags
 
+  has_one_attached :receipt_nf
+  has_one_attached :receipt_card
+
   delegate :manager_user, to: :user, allow_nil: true
 
   scope :by_text_filter, ->(text_filter) do

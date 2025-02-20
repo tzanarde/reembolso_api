@@ -9,7 +9,8 @@ class ExpenseSerializer < ActiveModel::Serializer
              :status,
              :manager,
              :employee,
-             :tags
+             :tags,
+             :receipts
 
   def manager
     object.user.manager_user&.slice(:id, :name)
@@ -21,5 +22,9 @@ class ExpenseSerializer < ActiveModel::Serializer
 
   def tags
     object.tags.map(&:description)
+  end
+
+  def receipts
+    { receipt_nf: object.receipt_nf.filename, receipt_card: object.receipt_card.filename }
   end
 end

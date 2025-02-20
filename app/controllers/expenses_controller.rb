@@ -15,6 +15,8 @@ class ExpensesController < ApplicationController
     @expense = Expense.new(expense_params)
 
     if @expense.save
+      @expense.receipt_nf.attach(params[:receipt_nf]) if valid_receipt? params[:receipt_nf]
+      @expense.receipt_card.attach(params[:receipt_card]) if valid_receipt? params[:receipt_card]
       @expense.add_tags(params[:tags]) if params[:tags].present? and params[:tags].count > 0
 
       render json: @expense, status: :created, location: @expense
@@ -43,6 +45,19 @@ class ExpensesController < ApplicationController
     end
 
     def expense_params
-      params.require(:expense).permit(:description, :date, :amount, :location, :status, :user_id, :text_filter)
+      params.permit(:description,
+                    :date,
+                    :amount,
+                    :location,
+                    :status,
+                    :user_id,
+                    :text_filter,
+                    :receipt_nf,
+                    :receipt_card)
+    end
+
+    def valid_receipt?(receipt)
+      receipt.present? and
+      (receipt.is_a?(ActionDispatch::Http::UploadedFile) or receipt.is_a?(Rack::Test::UploadedFile))
     end
 end
