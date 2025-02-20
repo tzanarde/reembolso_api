@@ -182,6 +182,22 @@ RSpec.describe "Expenses", type: :request do
               end
             end
 
+            context "filtering by location" do
+              let(:params) { { manager_user_id: manager.id, location: expenses[0].location } }
+              let(:testing_expenses) { employee_1_expenses }
+              let(:testing_employees) { [ employees[0], employees[0], employees[0] ] }
+
+              it 'returns expenses related to the manager filtered by location' do
+                get "/expenses", params: params, headers: headers
+
+                request_response = JSON.parse(response.body)["expenses"]
+
+                expect(response).to have_http_status(:ok)
+                expect(request_response.count).to eq(1)
+                match_expense_fields_index(request_response, testing_expenses, manager, testing_employees)
+              end
+            end
+
             context "filtering by amount" do
               let(:params) { { manager_user_id: manager.id, min_amount: 40.00, max_amount: 60.00 } }
               let(:testing_expenses) { employee_2_expenses }
