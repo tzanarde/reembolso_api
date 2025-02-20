@@ -3,6 +3,10 @@
 class Users::RegistrationsController < Devise::RegistrationsController
   respond_to :json
 
+  def destroy
+    @user.destroy!
+  end
+
   private
 
   def respond_with(resource, _opts = {})
