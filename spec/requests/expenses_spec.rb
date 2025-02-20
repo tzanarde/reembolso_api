@@ -274,7 +274,7 @@ RSpec.describe "Expenses", type: :request do
     let(:testing_employees) { employees[0] }
 
     context "when the user is logged in" do
-      context 'when the tag exists' do
+      context 'when the expense exists' do
         let(:user_token) { authenticate_user(manager) }
         let(:headers) { authenticated_user_headers(user_token) }
         it 'returns an expense' do
