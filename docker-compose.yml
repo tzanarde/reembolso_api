@@ -1,0 +1,29 @@
+services:
+  db:
+    image: postgres:16
+    restart: always
+    environment:
+      POSTGRES_USER: ${DATABASE_USER}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  web:
+    build: .
+    container_name: reembolso_api
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgres://${DATABASE_USER}:${DATABASE_PASSWORD}@db:5432/${DATABASE_NAME}
+      RAILS_ENV: ${RAILS_ENV:-development}
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+    command: ["rails", "server", "-b", "0.0.0.0"]
+
+volumes:
+  postgres_data:

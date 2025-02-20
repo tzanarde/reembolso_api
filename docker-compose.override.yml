@@ -1,0 +1,5 @@
+services:
+  web:
+    environment:
+      RAILS_ENV: test
+      DATABASE_NAME: reembolso_test
