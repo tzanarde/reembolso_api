@@ -358,6 +358,77 @@ RSpec.describe "Expenses", type: :request do
           end
         end
       end
+
+      context "with receipt files" do
+        context "with both receipt nf and receipt card files" do
+          let(:user_token) { authenticate_user(manager) }
+          let(:headers) { authenticated_user_headers_for_files(user_token) }
+          let(:receipt_nf) { fixture_file_upload(Rails.root.join("spec/fixtures/files/receipt_nf.png"), "image/png") }
+          let(:receipt_card) do
+            fixture_file_upload(Rails.root.join("spec/fixtures/files/receipt_card.png"), "image/png")
+          end
+          let!(:valid_params) do
+            attributes_for(:expense, :pending).merge(user_id: employees[0]["id"])
+                                              .merge(receipt_nf: receipt_nf)
+                                              .merge(receipt_card: receipt_card)
+          end
+          let(:testing_expenses) { JSON.parse(valid_params.to_json) }
+          let(:testing_employees) { employees[0] }
+
+          it 'creates an expense' do
+            post "/expenses", params: valid_params, headers: headers
+
+            request_response = JSON.parse(response.body)["expense"]
+
+            expect(response).to have_http_status(:created)
+            match_expense_fields_create(request_response, testing_expenses, manager, testing_employees)
+          end
+        end
+
+        context "with only receipt nf file" do
+          let(:user_token) { authenticate_user(manager) }
+          let(:headers) { authenticated_user_headers_for_files(user_token) }
+          let(:receipt_nf) { fixture_file_upload(Rails.root.join("spec/fixtures/files/receipt_nf.png"), "image/png") }
+          let!(:valid_params) do
+            attributes_for(:expense, :pending).merge(user_id: employees[0]["id"])
+                                              .merge(receipt_nf: receipt_nf)
+          end
+          let(:testing_expenses) { JSON.parse(valid_params.to_json) }
+          let(:testing_employees) { employees[0] }
+
+          it 'creates an expense' do
+            post "/expenses", params: valid_params, headers: headers
+
+            request_response = JSON.parse(response.body)["expense"]
+
+            expect(response).to have_http_status(:created)
+            match_expense_fields_create(request_response, testing_expenses, manager, testing_employees)
+          end
+        end
+
+        context "with only receipt card file" do
+          let(:user_token) { authenticate_user(manager) }
+          let(:headers) { authenticated_user_headers_for_files(user_token) }
+          let(:receipt_card) do
+            fixture_file_upload(Rails.root.join("spec/fixtures/files/receipt_card.png"), "image/png")
+          end
+          let!(:valid_params) do
+            attributes_for(:expense, :pending).merge(user_id: employees[0]["id"])
+                                              .merge(receipt_card: receipt_card)
+          end
+          let(:testing_expenses) { JSON.parse(valid_params.to_json) }
+          let(:testing_employees) { employees[0] }
+
+          it 'creates an expense' do
+            post "/expenses", params: valid_params, headers: headers
+
+            request_response = JSON.parse(response.body)["expense"]
+
+            expect(response).to have_http_status(:created)
+            match_expense_fields_create(request_response, testing_expenses, manager, testing_employees)
+          end
+        end
+      end
     end
 
     context "when the user is logged out" do

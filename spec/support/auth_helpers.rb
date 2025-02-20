@@ -21,4 +21,10 @@ module AuthHelpers
     { "Content-Type" => "application/json",
       "ACCEPT" => "application/json" }
   end
+
+  def authenticated_user_headers_for_files(user_token)
+    { "Content-Type" => "multipart/form-data",
+      "ACCEPT" => "application/json",
+      "Authorization" => "Bearer #{user_token}" }
+  end
 end

@@ -79,6 +79,16 @@ module MatchHelpers
           expect(requested_expense["tags"]).to include(tag)
         end
       end
+
+      if requested_expense["receipts"].count > 0
+        expect(requested_expense["receipts"].count).to eq(2)
+        if requested_expense["receipts"]["receipt_nf"].present?
+          expect(requested_expense["receipts"]["receipt_nf"]).to include(created_expense["receipt_nf"]["original_filename"])
+        end
+        if requested_expense["receipts"]["receipt_card"].present?
+          expect(requested_expense["receipts"]["receipt_card"]).to include(created_expense["receipt_card"]["original_filename"])
+        end
+      end
   end
 
   def match_expense_fields_update(request_response, expense, manager, employee, expense_updates)
