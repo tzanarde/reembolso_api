@@ -15,6 +15,8 @@ class ExpensesController < ApplicationController
     @expense = Expense.new(expense_params)
 
     if @expense.save
+      @expense.add_tags(params[:tags]) if params[:tags].present? and params[:tags].count > 0
+
       render json: @expense, status: :created, location: @expense
     else
       render json: @expense.errors, status: :unprocessable_entity
@@ -23,6 +25,8 @@ class ExpensesController < ApplicationController
 
   def update
     if @expense.update(expense_params)
+      @expense.update_tags(params[:tags]) unless params[:tags].nil?
+
       render json: @expense
     else
       render json: @expense.errors, status: :unprocessable_entity

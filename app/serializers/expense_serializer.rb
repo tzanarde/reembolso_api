@@ -8,7 +8,8 @@ class ExpenseSerializer < ActiveModel::Serializer
              :location,
              :status,
              :manager,
-             :employee
+             :employee,
+             :tags
 
   def manager
     object.user.manager_user&.slice(:id, :name)
@@ -16,5 +17,9 @@ class ExpenseSerializer < ActiveModel::Serializer
 
   def employee
     object.user&.slice(:id, :name)
+  end
+
+  def tags
+    object.tags.map(&:description)
   end
 end

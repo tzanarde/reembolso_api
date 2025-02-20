@@ -40,9 +40,9 @@ class Expense < ApplicationRecord
     where("amount >= ? AND amount <= ?", min_amount, max_amount) if min_amount.present? and max_amount.present?
   end
 
-  # scope :by_tags, ->(tags) do
-  #   joins(:tags).where(tags: { id: tags.map(&:id) }).distinct
-  # end
+  scope :by_tags, ->(tags) do
+    joins(:tags).where(tags: { description: tags }).distinct if tags.present?
+  end
 
   def self.filter(params)
     all.pending(params[:type])
@@ -52,6 +52,22 @@ class Expense < ApplicationRecord
        .by_date_period(params[:start_date], params[:final_date])
        .by_employee_id(params[:employee_id])
        .by_amount(params[:min_amount], params[:max_amount])
-      #  .by_tags(params[:tags])
+       .by_tags(params[:tags])
+  end
+
+  def add_tags(param_tags)
+    param_tags.each { |tag| tags << Tag.find_or_create_by(description: tag) }
+  end
+
+  def update_tags(param_tags)
+    tags_to_remove = if param_tags.count == 0
+      tags
+    else
+      tags - param_tags
+    end
+    tags_to_add = param_tags - tags
+
+    tags_to_remove.each { |tag| tags.destroy(tag) }
+    tags_to_add.each { |tag| tags << Tag.find_or_create_by(description: tag) }
   end
 end
