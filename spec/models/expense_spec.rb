@@ -11,6 +11,8 @@ RSpec.describe Expense, type: :model do
     it { should validate_presence_of :status }
     it { should belong_to(:user) }
     it { should have_and_belong_to_many(:tags) }
+    it { should have_one_attached(:receipt_nf) }
+    it { should have_one_attached(:receipt_card) }
   end
 
   describe "relationship" do
