@@ -412,5 +412,5 @@ curl --location --request DELETE 'localhost:3000/tags/1' \
 Para rodar os testes, utilizar o comando abaixo:
 
 ```sh
-docker compose exec rails db:create db:migrate
+docker compose exec web bundle exec rspec
 ```
