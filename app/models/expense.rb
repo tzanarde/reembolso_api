@@ -39,6 +39,10 @@ class Expense < ApplicationRecord
     where(user_id: employee_id) if employee_id.present?
   end
 
+  scope :by_location, ->(location) do
+    where(location: location) if location.present?
+  end
+
   scope :by_amount, ->(min_amount, max_amount) do
     where("amount >= ? AND amount <= ?", min_amount, max_amount) if min_amount.present? and max_amount.present?
   end
@@ -54,6 +58,7 @@ class Expense < ApplicationRecord
        .by_date(params[:date])
        .by_date_period(params[:start_date], params[:final_date])
        .by_employee_id(params[:employee_id])
+       .by_location(params[:location])
        .by_amount(params[:min_amount], params[:max_amount])
        .by_tags(params[:tags])
   end
